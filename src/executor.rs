@@ -1,4 +1,4 @@
-use crate::task::{StackBox, Task};
+use crate::task::Task;
 use core::future::Future;
 use core::ptr;
 use core::task::{Context, RawWaker, RawWakerVTable, Waker};
@@ -23,7 +23,7 @@ impl<'a> Default for Executor<'a> {
 impl<'a> Executor<'a> {
     #[must_use]
     pub fn new() -> Self {
-        Executor {
+        Self {
             tasks: [const { None }; 4],
             index: 0,
             pending_callback: None,
@@ -48,7 +48,7 @@ impl<'a> Executor<'a> {
 
         let index = self.index;
         self.index += 1;
-        self.tasks[index] = Some(Task::new(name, StackBox::new(future)));
+        self.tasks[index] = Some(Task::new(name, future));
 
         Ok(())
     }
