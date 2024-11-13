@@ -1,4 +1,4 @@
-use core::cell::RefCell;
+use core::cell::OnceCell;
 use core::future::Future;
 use core::pin::Pin;
 
@@ -107,7 +107,15 @@ impl<'a> Task<'a> {
 /// let stack_box = StackBox::new(&mut my_value);
 /// ```
 pub struct StackBox<'a, T: ?Sized> {
-    pub value: RefCell<Pin<&'a mut T>>,
+    pub value: OnceCell<Pin<&'a mut T>>,
+}
+
+impl<'a, T: ?Sized> Default for StackBox<'a, T> {
+    fn default() -> Self {
+        StackBox {
+            value: OnceCell::new(),
+        }
+    }
 }
 
 impl<'a, T: ?Sized> StackBox<'a, T> {
@@ -132,9 +140,12 @@ impl<'a, T: ?Sized> StackBox<'a, T> {
     /// let stack_box = StackBox::new(&mut my_value);
     /// ```
     pub fn new(value: &'a mut T) -> Self {
-        StackBox {
-            value: RefCell::new(unsafe { Pin::new_unchecked(value) }),
-        }
+        let new_box = StackBox::default();
+        new_box
+            .value
+            .get_or_init(|| unsafe { Pin::new_unchecked(value) });
+
+        new_box
     }
 }
 
