@@ -5,7 +5,15 @@ edition = "2021"
 resolver = "2"
 license = "Apache-2.0"
 keywords = ["executor"]
+description = "The simpliest async executor without heap memory allocation"
 categories = ["no-std", "no-std::no-alloc", "asynchronous"]
+authors = ["Vladimir Petrigo <vladimir.petrigo@gmail.com>"]
+repository = "https://github.com/vpetrigo/sntpc"
+
+exclude = [
+    "CONTRIBUTING.md",
+    ".*",
+]
 
 [dependencies]
 
