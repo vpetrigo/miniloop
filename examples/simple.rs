@@ -6,11 +6,14 @@ fn sleep(s: u64) {
 }
 
 async fn dummy_func(data: &str) {
-    loop {
+    let mut counter = 0usize;
+
+    while counter != 4 {
         sleep(2);
         let now = get_timestamp_sec();
         println!("{now}: {data}");
         yield_me().await;
+        counter += 1;
     }
 }
 
@@ -23,7 +26,7 @@ fn get_timestamp_sec() -> u64 {
 
 fn pending_print(task_name: &str) {
     let now = get_timestamp_sec();
-    println!("{now}: Task {task_name} is pending. Waiting for next tick...");
+    println!("{now}: Task {task_name} is pending. Waiting for the next tick...");
 }
 
 fn main() {
@@ -49,4 +52,5 @@ fn main() {
     let _ = executor.spawn("rust", &mut binding4);
 
     executor.run();
+    println!("Done!");
 }
