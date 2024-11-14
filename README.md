@@ -1,3 +1,5 @@
+[![build](https://github.com/vpetrigo/miniloop/actions/workflows/ci.yml/badge.svg)](https://github.com/vpetrigo/miniloop/actions/workflows/ci.yml)
+
 # miniloop - simple asynchronous executor
 
 -----------------------------------------
@@ -68,8 +70,8 @@ This project is licensed under <a href="LICENSE.md">Apache License, Version 2.0<
 
 <br/>
 
-<sup>
+<sub>
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in time by you, as
 defined in the Apache-2.0 license, shall be licensed as above, without any additional terms or
 conditions.
-</sup>
+</sub>
