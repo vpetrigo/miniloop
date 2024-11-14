@@ -2,3 +2,4 @@
 **/.idea/
 # Rust
 **/target
+**/Cargo.lock
