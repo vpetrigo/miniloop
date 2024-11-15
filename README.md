@@ -1,5 +1,5 @@
 [![build](https://github.com/vpetrigo/miniloop/actions/workflows/ci.yml/badge.svg)](https://github.com/vpetrigo/miniloop/actions/workflows/ci.yml)
-![Crates.io Version](https://img.shields.io/crates/v/miniloop)
+[![Crates.io Version](https://img.shields.io/crates/v/miniloop)](https://crates.io/crates/miniloop)
 
 
 # miniloop - simple asynchronous executor
