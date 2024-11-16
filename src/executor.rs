@@ -1,14 +1,56 @@
+//! # Executor implementation
+//!
+//! This sub-module provides the core components and functionality needed to manage and execute
+//! asynchronous tasks within the `miniloop` crate. It includes the `Executor` struct, responsible
+//! for handling task management, and related utilities for polling tasks.
+//!
+//! ## Examples
+//!
+//! ### Creating a New Executor
+//! ```rust
+//! # use miniloop::executor::Executor;
+//! let executor = Executor::new();
+//! ```
+//!
+//! ### Setting a Pending Callback
+//! ```rust
+//! # use miniloop::executor::Executor;
+//! let mut executor = Executor::new();
+//! executor.set_pending_callback(|task_name| {
+//!     println!("Task {} is pending", task_name);
+//! });
+//! ```
+//!
+//! ### Spawning a Task
+//! ```no_run
+//! # use miniloop::executor::Executor;
+//! # use core::future::Future;
+//! // Assume `some_future` is a mutable future reference
+//! let mut executor = Executor::new();
+//! # let mut some_future = async {};
+//! executor.spawn("task1", &mut some_future).expect("Failed to spawn task");
+//! ```
+//!
+//! ### Running the Executor
+//! ```no_run
+//! # use miniloop::executor::Executor;
+//! # use core::future::Future;
+//! // Assume `some_future` is a mutable future reference
+//! let mut executor = Executor::new();
+//! # let mut some_future = async {};
+//! executor.spawn("task1", &mut some_future).expect("Failed to spawn task");
+//! executor.run();
+//! ```
+//!
+//! ## Usage Notes
+//! - The `Executor` is designed to work with a fixed task slot size of 4. Trying to add more than 4 tasks will result in an error (`NoFreeSlots`).
+//! - Ensure that tasks added to the executor are correctly managed and polled to avoid resource leaks or incomplete executions.
 use crate::task::Task;
 use core::future::Future;
 use core::ptr;
 use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
 /// An enumeration representing different types of errors that can occur.
-///
-/// # Variants
-///
-/// * `NoFreeSlots`:
-///     Indicates that there are no free slots available.
 #[derive(Debug, PartialEq)]
 pub enum Error {
     /// Indicates that there are no free slots available.

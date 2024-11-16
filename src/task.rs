@@ -4,16 +4,6 @@ use core::pin::Pin;
 
 /// A `Task` represents a named asynchronous operation.
 ///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the references within the `Task`.
-///
-/// # Fields
-///
-/// - `name`: A string slice that holds the name of the task.
-/// - `future`: A future that is boxed on the stack, representing the
-///    asynchronous operation associated with the task.
-///
 /// # Examples
 ///
 /// ```
@@ -24,7 +14,10 @@ use core::pin::Pin;
 /// let task = Task::new(task_name, &mut some_future);
 /// ```
 pub struct Task<'a> {
+    /// A string that holds the name of the task.
     pub name: &'a str,
+    /// A future that is boxed on the stack, representing the asynchronous operation associated
+    /// with the task.
     pub future: StackBoxFuture<'a>,
 }
 
@@ -93,9 +86,6 @@ impl<'a> Task<'a> {
 /// - `'a`: The lifetime of the reference to the stored value.
 /// - `T`: The type of the value to be stored. The type may be dynamically sized (`?Sized`).
 ///
-/// # Fields
-/// - `value`: A `RefCell` containing a pinned mutable reference to the stored value.
-///
 /// # Example
 /// ```
 /// use miniloop::task::StackBox;
@@ -107,6 +97,7 @@ impl<'a> Task<'a> {
 /// let stack_box = StackBox::new(&mut my_value);
 /// ```
 pub struct StackBox<'a, T: ?Sized> {
+    /// A `OnceCell` containing a pinned mutable reference to the stored value.
     pub value: OnceCell<Pin<&'a mut T>>,
 }
 
