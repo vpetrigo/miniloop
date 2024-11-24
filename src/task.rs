@@ -1,3 +1,52 @@
+//! # Task Module
+//!
+//! This module provides utilities for creating and managing named asynchronous operations.
+//! It includes the `Task` struct, the `StackBox` struct, and the `StackBoxFuture` type alias.
+//! These components help in organizing asynchronous tasks and executing them on the stack.
+//!
+//! ## Overview
+//!
+//! The core functionalities provided in this module facilitate the creation and management of
+//! asynchronous operations by associating them with names and allowing them to be stored and
+//! run on the stack. The major components are:
+//!
+//! 1. [`Task`]: Represents a named asynchronous operation.
+//! 2. [`StackBox`]: A container for safely pinning a value in place on the stack.
+//! 3. [`StackBoxFuture`]: A type alias for a `StackBox` containing a `Future` trait object.
+//!
+//! ## Examples
+//!
+//! ### Creating a `Task`
+//!
+//! ```rust
+//! use miniloop::task::Task;
+//!
+//! let task_name = "example_task";
+//! let mut some_future = async { () }; // Example future, replace `()` with actual future logic
+//! let task = Task::new(task_name, &mut some_future);
+//! ```
+//!
+//! ### Creating a `StackBox`
+//!
+//! ```rust
+//! use miniloop::task::StackBox;
+//!
+//! let mut my_value = 42;
+//! let stack_box = StackBox::new(&mut my_value);
+//! ```
+//!
+//! ### Creating a `StackBoxFuture`
+//!
+//! ```rust
+//! use miniloop::task::{StackBox, StackBoxFuture};
+//!
+//! async fn my_async_fn() {
+//!     // Your async code here
+//! }
+//!
+//! let mut my_future = async { my_async_fn().await };
+//! let stack_box_future: StackBoxFuture = StackBox::new(&mut my_future);
+//! ```
 use core::cell::OnceCell;
 use core::future::Future;
 use core::pin::Pin;
