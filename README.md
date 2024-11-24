@@ -1,13 +1,18 @@
 [![build](https://github.com/vpetrigo/miniloop/actions/workflows/ci.yml/badge.svg)](https://github.com/vpetrigo/miniloop/actions/workflows/ci.yml)
 [![Crates.io Version](https://img.shields.io/crates/v/miniloop)](https://crates.io/crates/miniloop)
 
-
 # miniloop - simple asynchronous executor
 
 -----------------------------------------
 
 This repository is created as an attempt to clarify some more low-level details about how things work
 in Rust asynchronous world.
+
+The `miniloop` executor creates a statically allocated list of tasks. That number should be available upon a crate
+build:
+
+- `MINILOOP_TASK_ARRAY_SIZE`: default value is `1` which means you can schedule a single task within the executor. To
+  override that just define an environment variable with the number of tasks you plan to use in your application.
 
 Create your tasks on the stack, add them to the executor and enjoy!
 
@@ -20,9 +25,10 @@ fn sleep(s: u64) {
 }
 
 async fn dummy_func(data: &str) {
+    const TICKS: usize = 4;
     let mut counter = 0usize;
 
-    while counter != 4 {
+    while counter != TICKS {
         sleep(2);
         let now = get_timestamp_sec();
         println!("{now}: {data}");
