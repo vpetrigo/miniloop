@@ -2,9 +2,9 @@
 //!
 //! Contains a set of helper functions/structs that helps with executor control:
 //!   - `yield_me` - yield current task execution and let the executor switches to another task
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```no_run
 //! # use miniloop::executor::Executor;
 //! # use core::future::Future;
@@ -68,7 +68,7 @@ impl Future for Yield {
 ///
 /// This function creates an instance of the `Yield` future and awaits its completion,
 /// effectively yielding execution back to the executor once.
-/// 
+///
 /// # Example
 /// ```no_run
 /// # use miniloop::helpers::yield_me;
