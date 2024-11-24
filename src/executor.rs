@@ -1,8 +1,13 @@
 //! # Executor implementation
 //!
-//! This sub-module provides the core components and functionality needed to manage and execute
+//! This submodule provides the core components and functionality needed to manage and execute
 //! asynchronous tasks within the `miniloop` crate. It includes the `Executor` struct, responsible
 //! for handling task management, and related utilities for polling tasks.
+//!
+//! An executor contains a statically allocated list of tasks. The size of that list is defined by
+//! the environment variable `MINILOOP_TASK_ARRAY_SIZE`. By default, that variable is set up to `1`.
+//! If you need more tasks to be scheduled, consider to set up that variable to the value you
+//! require.
 //!
 //! ## Examples
 //!
@@ -43,12 +48,14 @@
 //! ```
 //!
 //! ## Usage Notes
-//! - The `Executor` is designed to work with a fixed task slot size of 4. Trying to add more than 4 tasks will result in an error (`NoFreeSlots`).
+//! - The `Executor` is designed to work with a fixed task slot size. Trying to add more than 4 tasks will result in an error (`NoFreeSlots`).
 //! - Ensure that tasks added to the executor are correctly managed and polled to avoid resource leaks or incomplete executions.
 use crate::task::Task;
 use core::future::Future;
 use core::ptr;
 use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
+
+include!(concat!(env!("OUT_DIR"), "/task_array_size.inc"));
 
 /// An enumeration representing different types of errors that can occur.
 #[derive(Debug, PartialEq)]
@@ -60,7 +67,7 @@ pub enum Error {
 /// The `Executor` struct is responsible for managing and running tasks.
 pub struct Executor<'a> {
     /// An array of optional tasks that the executor can manage. The array size is fixed at 4 elements.
-    tasks: [Option<Task<'a>>; 4],
+    tasks: [Option<Task<'a>>; TASK_ARRAY_SIZE],
 
     /// An index indicating the current position in the tasks array.
     index: usize,
@@ -102,7 +109,7 @@ impl<'a> Executor<'a> {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            tasks: [const { None }; 4],
+            tasks: [const { None }; TASK_ARRAY_SIZE],
             index: 0,
             pending_callback: None,
         }
