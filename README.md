@@ -3,8 +3,6 @@
 
 # miniloop - simple asynchronous executor
 
------------------------------------------
-
 This repository is created as an attempt to clarify some more low-level details about how things work
 in Rust asynchronous world.
 
@@ -13,6 +11,8 @@ build:
 
 - `MINILOOP_TASK_ARRAY_SIZE`: default value is `1` which means you can schedule a single task within the executor. To
   override that just define an environment variable with the number of tasks you plan to use in your application.
+
+# miniloop in action
 
 Create your tasks on the stack, add them to the executor and enjoy!
 
@@ -69,8 +69,6 @@ fn main() {
 ```
 
 # License
-
----------
 
 <sup>
 This project is licensed under <a href="LICENSE.md">Apache License, Version 2.0</a>
