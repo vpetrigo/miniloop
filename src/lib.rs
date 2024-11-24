@@ -3,6 +3,14 @@
 //! Miniloop is an educational Rust crate designed to teach the basics of building executors for asynchronous tasks.
 //! It provides a simple and comprehensive executor that helps in understanding how futures and task scheduling work under the hood.
 //!
+//! ## Build variables
+//!
+//! The `miniloop` executor creates a statically allocated list of tasks. That number should be available upon a crate
+//! build:
+//!
+//! - `MINILOOP_TASK_ARRAY_SIZE`: default value is `1` which means you can schedule a single task within the executor. To
+//!   override that just define an environment variable with the number of tasks you plan to use in your application.
+//!
 //! ## Features
 //!
 //! - **No Standard Library**: This crate is `#![no_std]`, making it suitable for embedded and
@@ -76,8 +84,30 @@ pub mod task;
 
 #[cfg(test)]
 mod test {
-    use super::executor::{Error, Executor};
-    use core::cell::{Cell, RefCell};
+    use super::executor::Executor;
+    use core::cell::Cell;
+    use core::future::Future;
+    use core::pin::Pin;
+    use core::task::{Context, Poll};
+
+    include!(concat!(env!("OUT_DIR"), "/task_array_size.inc"));
+
+    struct MyTestFuture(bool);
+
+    impl MyTestFuture {
+        const fn default() -> Self {
+            Self(false)
+        }
+    }
+
+    impl Future for MyTestFuture {
+        type Output = ();
+
+        fn poll(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Self::Output> {
+            self.get_mut().0 = true;
+            Poll::Ready(())
+        }
+    }
 
     #[test]
     fn test_one_future() {
@@ -96,50 +126,30 @@ mod test {
 
     #[test]
     fn test_multiple_futures() {
-        let called = RefCell::new([const { Cell::new(false) }; 4]);
+        let mut task_array = [const { MyTestFuture::default() }; TASK_ARRAY_SIZE];
         let mut executor = Executor::new();
-        let mut task1 = async {
-            *called.borrow_mut()[0].get_mut() = true;
-        };
-        let mut task2 = async {
-            *called.borrow_mut()[1].get_mut() = true;
-        };
-        let mut task3 = async {
-            *called.borrow_mut()[2].get_mut() = true;
-        };
-        let mut task4 = async {
-            *called.borrow_mut()[3].get_mut() = true;
-        };
 
-        let _ = executor.spawn("task1", &mut task1);
-        let _ = executor.spawn("task2", &mut task2);
-        let _ = executor.spawn("task3", &mut task3);
-        let _ = executor.spawn("task4", &mut task4);
+        for task in &mut task_array {
+            let _ = executor.spawn("", task);
+        }
 
         executor.run();
-
-        assert!(called.borrow().iter().all(Cell::get));
+        assert!(task_array.iter().all(|task| task.0));
     }
 
     #[test]
     fn test_schedule_too_many_tasks() {
-        let mut task1 = async {};
-        let mut task2 = async {};
-        let mut task3 = async {};
-        let mut task4 = async {};
-        let mut task5 = async {};
+        let mut array = [const { MyTestFuture::default() }; TASK_ARRAY_SIZE + 1];
         let mut executor = Executor::new();
 
-        let result = executor.spawn("task1", &mut task1);
-        assert!(result.is_ok());
-        let result = executor.spawn("task2", &mut task2);
-        assert!(result.is_ok());
-        let result = executor.spawn("task3", &mut task3);
-        assert!(result.is_ok());
-        let result = executor.spawn("task4", &mut task4);
-        assert!(result.is_ok());
-        let result = executor.spawn("task5", &mut task5);
-        assert!(result.is_err());
-        assert_eq!(Error::NoFreeSlots, result.unwrap_err());
+        for (i, element) in &mut array.iter_mut().enumerate() {
+            let result = executor.spawn("", element);
+
+            if i < TASK_ARRAY_SIZE {
+                assert!(result.is_ok());
+            } else {
+                assert!(result.is_err());
+            }
+        }
     }
 }
