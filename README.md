@@ -12,6 +12,27 @@ build:
 - `MINILOOP_TASK_ARRAY_SIZE`: default value is `1` which means you can schedule a single task within the executor. To
   override that just define an environment variable with the number of tasks you plan to use in your application.
 
+## Configuration
+
+You can set up the environment variable in a shell prior to running the `cargo build` command:
+
+- Linux
+  ```shell
+  export MINILOOP_TASK_ARRAY_SIZE=10
+  ```
+- Windows
+  ```powershell
+  $env:MINILOOP_TASK_ARRAY_SIZE = 10
+  ```
+
+Or you can use [configurable environment](https://doc.rust-lang.org/nightly/cargo/reference/config.html#env) feature by
+creating a `.cargo/config.toml` file with the following content:
+
+```toml
+[env]
+MINILOOP_TASK_ARRAY_SIZE = "10"
+```
+
 # miniloop in action
 
 Create your tasks on the stack, add them to the executor and enjoy!
