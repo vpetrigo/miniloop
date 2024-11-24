@@ -6,9 +6,10 @@ fn sleep(s: u64) {
 }
 
 async fn dummy_func(data: &str) {
+    const TICKS: usize = 4;
     let mut counter = 0usize;
 
-    while counter != 4 {
+    while counter != TICKS {
         sleep(2);
         let now = get_timestamp_sec();
         println!("{now}: {data}");
