@@ -12,5 +12,4 @@ fn main() {
         format!("const TASK_ARRAY_SIZE: usize = {task_array_size};\n"),
     )
     .unwrap();
-    println!("cargo::rerun-if-changed=build.rs");
 }
