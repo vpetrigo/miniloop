@@ -12,4 +12,5 @@ fn main() {
         format!("const TASK_ARRAY_SIZE: usize = {task_array_size};\n"),
     )
     .unwrap();
+    println!("cargo:rerun-if-env-changed=MINILOOP_TASK_ARRAY_SIZE");
 }
