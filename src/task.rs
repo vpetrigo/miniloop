@@ -150,7 +150,7 @@ pub struct StackBox<'a, T: ?Sized> {
     pub value: OnceCell<Pin<&'a mut T>>,
 }
 
-impl<'a, T: ?Sized> Default for StackBox<'a, T> {
+impl<T: ?Sized> Default for StackBox<'_, T> {
     fn default() -> Self {
         StackBox {
             value: OnceCell::new(),

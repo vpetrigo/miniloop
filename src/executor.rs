@@ -76,7 +76,7 @@ pub struct Executor<'a> {
     pending_callback: Option<fn(&str)>,
 }
 
-impl<'a> Default for Executor<'a> {
+impl Default for Executor<'_> {
     fn default() -> Self {
         Self::new()
     }
