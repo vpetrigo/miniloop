@@ -52,6 +52,7 @@
 //! - Ensure that tasks added to the executor are correctly managed and polled to avoid resource leaks or incomplete executions.
 use crate::task::Task;
 use core::future::Future;
+use core::pin::pin;
 use core::ptr;
 use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
@@ -143,6 +144,44 @@ impl<'a> Executor<'a> {
         self.tasks[index] = Some(Task::new(name, future));
 
         Ok(())
+    }
+    /// Blocks on the provided future until it is completed.
+    ///
+    /// This method will drive the given future to completion, blocking the
+    /// current thread during the process. It is useful for running a single
+    /// future to completion in a synchronous context.
+    ///
+    /// # Parameters
+    ///
+    /// * `future` - The future to be executed until completion. The future
+    ///   must implement [`Future`], and its output must match the type `T`.
+    ///
+    /// # Returns
+    ///
+    /// This function will return the output of the provided future once it
+    /// is resolved.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use miniloop::executor::Executor;
+    /// let mut executor = Executor::new();
+    /// let result = executor.block_on(async { 42 });
+    /// assert_eq!(result, 42);
+    /// ```
+    pub fn block_on<F, T>(&mut self, mut future: F) -> T
+    where
+        F: Future<Output = T>,
+    {
+        let waker = create_waker();
+        let mut future = pin!(future);
+        let mut ctx = Context::from_waker(&waker);
+
+        loop {
+            if let Poll::Ready(val) = future.as_mut().poll(&mut ctx) {
+                return val;
+            }
+        }
     }
 
     /// Executes tasks in the executor until all tasks are completed.
