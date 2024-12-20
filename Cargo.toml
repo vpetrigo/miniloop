@@ -19,3 +19,6 @@ exclude = [
 
 [[example]]
 name = "simple"
+
+[[example]]
+name = "simple2"
