@@ -130,11 +130,10 @@ impl<'a> Executor<'a> {
     /// # Errors
     ///
     /// * `NoFreeSlots` - if there is no free slots in the executor
-    pub fn spawn(
-        &mut self,
-        name: &'a str,
-        future: &'a mut impl Future<Output = ()>,
-    ) -> Result<(), Error> {
+    pub fn spawn<F>(&mut self, name: &'a str, future: &'a mut F) -> Result<(), Error>
+    where
+        F: Future<Output = ()> + 'a,
+    {
         if self.index >= self.tasks.len() {
             return Err(Error::NoFreeSlots);
         }
