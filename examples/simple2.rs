@@ -49,13 +49,12 @@ fn pending_print(task_name: &str) {
 }
 
 struct Runner<'a, T: Future> {
-    future: Pin<&'a mut T>,
+    future: T,
     handle: Option<&'a mut Handle<T::Output>>,
 }
 
 impl<'a, T: Future> Runner<'a, T> {
-    fn new(future: &'a mut T) -> (Self, Handle<T::Output>) {
-        let future = unsafe { Pin::new_unchecked(future) };
+    fn new(future: T) -> (Self, Handle<T::Output>) {
         let handle = Handle { val: None };
         let runner = Self {
             future,
@@ -76,10 +75,15 @@ where
 {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let res = ready!(self.as_mut().future.as_mut().poll(cx));
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = unsafe { self.get_unchecked_mut() };
+        // SAFETY:
+        // 1. `this.future` is never moved out of `Runner` after this line.
+        // 2. `this.future` is not used to create a `Pin<&mut T>` anywhere else.
+        let future = unsafe { Pin::new_unchecked(&mut this.future) };
+        let res = ready!(future.poll(cx));
 
-        if let Some(handle) = self.handle.as_mut() {
+        if let Some(handle) = this.handle.as_mut() {
             handle.val = Some(res);
         }
 
@@ -102,12 +106,10 @@ fn main() {
     let mut executor = Executor::new();
     executor.set_pending_callback(pending_print);
 
-    let mut binding1 = bind!(foo);
-    let (mut runner1, mut handle1) = Runner::new(&mut binding1);
+    let (mut runner1, mut handle1) = Runner::new(async { foo().await });
     runner1.link_handle(&mut handle1);
     let _ = executor.spawn("foo", &mut runner1);
-    let mut binding2 = bind!(bar);
-    let (mut runner2, mut handle2) = Runner::new(&mut binding2);
+    let (mut runner2, mut handle2) = Runner::new(async move { bar().await });
     runner2.link_handle(&mut handle2);
     let _ = executor.spawn("bar", &mut runner2);
 
