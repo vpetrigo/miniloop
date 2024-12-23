@@ -11,31 +11,6 @@
 //!
 //! ## Examples
 //!
-//! ### Creating a New Executor
-//! ```rust
-//! # use miniloop::executor::Executor;
-//! let executor = Executor::new();
-//! ```
-//!
-//! ### Setting a Pending Callback
-//! ```rust
-//! # use miniloop::executor::Executor;
-//! let mut executor = Executor::new();
-//! executor.set_pending_callback(|task_name| {
-//!     println!("Task {} is pending", task_name);
-//! });
-//! ```
-//!
-//! ### Spawning a Task
-//! ```no_run
-//! # use miniloop::executor::Executor;
-//! # use miniloop::task::Task;
-//! let mut executor = Executor::new();
-//! let mut task = Task::new("task1", async { println!("Task executed"); });
-//! let mut handle = task.create_handle();
-//! executor.spawn(&mut task, &mut handle).expect("Failed to spawn task");
-//! ```
-//!
 //! ### Running the Executor
 //! ```no_run
 //! # use miniloop::executor::Executor;
@@ -101,14 +76,6 @@ impl<'a> Executor<'a> {
     ///
     /// The `#[must_use]` attribute indicates that the returned `Executor` instance should not
     /// be discarded.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use miniloop::executor::Executor;
-    ///
-    /// let executor = Executor::new();
-    /// ```
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -194,6 +161,10 @@ impl<'a> Executor<'a> {
     ///
     /// The method repeatedly polls each task in the tasks array. If a task completes, it is removed from the array.
     /// The function keeps running until all tasks are either completed or removed from the tasks array.
+    ///
+    /// <div class="warning">
+    /// That call does not return till all tasks are finished theirs execution.
+    /// </div>
     ///
     /// # Behavior
     ///
