@@ -77,7 +77,7 @@ impl<'a> Executor<'a> {
     /// The `#[must_use]` attribute indicates that the returned `Executor` instance should not
     /// be discarded.
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             tasks: [const { None }; TASK_ARRAY_SIZE],
             index: 0,
