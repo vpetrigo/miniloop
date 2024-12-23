@@ -1,4 +1,4 @@
-//! # Task Module
+//! # `Task` implementation
 //!
 //! This module provides utilities for creating and managing named asynchronous operations.
 //! It includes the `Task` struct, the `StackBox` struct, and the `StackBoxFuture` type alias.
@@ -11,8 +11,6 @@
 //! run on the stack. The major components are:
 //!
 //! 1. [`Task`]: Represents a named asynchronous operation.
-//! 2. [`StackBox`]: A container for safely pinning a value in place on the stack.
-//! 3. [`StackBoxFuture`]: A type alias for a `StackBox` containing a `Future` trait object.
 //!
 //! ## Examples
 //!
@@ -22,34 +20,23 @@
 //! use miniloop::task::Task;
 //!
 //! let task_name = "example_task";
-//! let mut some_future = async { () }; // Example future, replace `()` with actual future logic
-//! let task = Task::new(task_name, &mut some_future);
+//! // Example future, replace `()` with actual future logic
+//! let task = Task::new(task_name, async { () });
 //! ```
-//!
-//! ### Creating a `StackBox`
-//!
-//! ```rust
-//! use miniloop::task::StackBox;
-//!
-//! let mut my_value = 42;
-//! let stack_box = StackBox::new(&mut my_value);
-//! ```
-//!
-//! ### Creating a `StackBoxFuture`
-//!
-//! ```rust
-//! use miniloop::task::{StackBox, StackBoxFuture};
-//!
-//! async fn my_async_fn() {
-//!     // Your async code here
-//! }
-//!
-//! let mut my_future = async { my_async_fn().await };
-//! let stack_box_future: StackBoxFuture = StackBox::new(&mut my_future);
-//! ```
-use core::cell::OnceCell;
+
 use core::future::Future;
 use core::pin::Pin;
+use core::task::{ready, Context, Poll};
+
+pub struct Handle<T> {
+    pub value: Option<T>,
+}
+
+impl<T> Default for Handle<T> {
+    fn default() -> Self {
+        Self { value: None }
+    }
+}
 
 /// A `Task` represents a named asynchronous operation.
 ///
@@ -59,18 +46,25 @@ use core::pin::Pin;
 /// use miniloop::task::Task;
 ///
 /// let task_name = "example_task";
-/// let mut some_future = async { () }; // Example future, replace `()` with actual future logic
-/// let task = Task::new(task_name, &mut some_future);
+/// // Example future, replace `()` with actual future logic
+/// let task = Task::new(task_name, async { () });
 /// ```
-pub struct Task<'a> {
+pub struct Task<'a, F: Future> {
     /// A string that holds the name of the task.
-    pub name: &'a str,
-    /// A future that is boxed on the stack, representing the asynchronous operation associated
-    /// with the task.
-    pub future: StackBoxFuture<'a>,
+    pub name: Option<&'a str>,
+    /// A future representing the asynchronous operation associated with the task.
+    pub future: F,
+    handle: Option<&'a mut Handle<F::Output>>,
 }
 
-impl<'a> Task<'a> {
+impl<'a, F: Future> Task<'a, F> {
+    const fn new_impl(name: Option<&'a str>, future: F) -> Self {
+        Self {
+            name,
+            future,
+            handle: None,
+        }
+    }
     /// Creates a new `Task` with the specified name and future.
     ///
     /// # Arguments
@@ -87,130 +81,109 @@ impl<'a> Task<'a> {
     ///
     /// ```
     /// use miniloop::task::Task;
-    /// use core::future::Future;
-    ///
-    /// let name = "example_task";
-    /// let mut future = async { () };
-    /// let task = Task::new(name, &mut future);
+    /// let task = Task::new("example_task", async {});
     /// ```
-    pub fn new(name: &'a str, future: &'a mut impl Future<Output = ()>) -> Self {
-        Self {
-            name,
-            future: StackBox::new(future),
-        }
+    pub const fn new(name: &'a str, future: F) -> Self {
+        Self::new_impl(Some(name), future)
     }
 
-    /// Creates a new `Task` with the specified name and boxed future.
+    /// Creates a new instance of the struct without a name and initializes it with the given future.
     ///
     /// # Arguments
     ///
-    /// * `name` - A string slice that holds the name of the task.
-    /// * `future` - A `StackBoxFuture` holding the future to be executed.
+    /// - `future`: A mutable reference to an implementation of [`Future`] with an output of `()`.
     ///
     /// # Returns
     ///
-    /// A new instance of `Task`.
+    /// A new instance of the struct with:
+    /// - `name` set to `None`.
+    /// - `future` initialized using the provided `future` wrapped in a `StackBox`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use miniloop::task::Task;
+    /// let instance = Task::new_nameless(async {});
+    /// ```
+    pub const fn new_nameless(future: F) -> Self {
+        Self::new_impl(None, future)
+    }
+
+    /// Creates a default handle for the task's output.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of [`Handle`] with its value set to `None`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use miniloop::task::{StackBox, StackBoxFuture, Task};
-    /// let name = "example_task";
-    /// let mut future = async { () };
-    /// let stack_box: StackBoxFuture = StackBox::new(&mut future);
-    /// let task = Task::new_box(name, stack_box);
+    /// use miniloop::task::{Task, Handle};
+    ///
+    /// let task = Task::new("example_task", async { 42 });
+    /// let handle = task.create_handle();
+    /// assert!(handle.value.is_none());
     /// ```
-    pub fn new_box(name: &'a str, future: StackBoxFuture<'a>) -> Self {
-        Self { name, future }
+    #[must_use]
+    pub fn create_handle(&self) -> Handle<F::Output> {
+        Handle::default()
     }
-}
 
-/// A container for holding a pinned reference to a value on the stack.
-///
-/// The `StackBox` struct provides a way to safely pin a value in place on the stack.
-/// A pinned reference means that the value pointed to by the reference cannot be moved.
-/// This is important for certain types that rely on stable addresses, such as generators or futures.
-///
-/// # Type Parameters
-/// - `'a`: The lifetime of the reference to the stored value.
-/// - `T`: The type of the value to be stored. The type may be dynamically sized (`?Sized`).
-///
-/// # Example
-/// ```
-/// use miniloop::task::StackBox;
-///
-/// // Create a mutable value on the stack
-/// let mut my_value = 42;
-///
-/// // Wrap the value in a StackBox
-/// let stack_box = StackBox::new(&mut my_value);
-/// ```
-pub struct StackBox<'a, T: ?Sized> {
-    /// A `OnceCell` containing a pinned mutable reference to the stored value.
-    pub value: OnceCell<Pin<&'a mut T>>,
-}
-
-impl<T: ?Sized> Default for StackBox<'_, T> {
-    fn default() -> Self {
-        StackBox {
-            value: OnceCell::new(),
-        }
-    }
-}
-
-impl<'a, T: ?Sized> StackBox<'a, T> {
-    /// Creates a new `StackBox` containing a pinned reference to the provided value.
+    /// Links a mutable reference to a [`Handle`] with the task.
     ///
     /// # Arguments
-    /// - `value`: A mutable reference to the value to be stored. The reference must have the
-    ///   appropriate lifetime `'a`.
     ///
-    /// # Returns
-    /// A `StackBox` containing a pinned mutable reference to the provided value.
+    /// * `handle` - A mutable reference to a [`Handle`] that stores the output of the task's future.
     ///
-    /// # Safety
-    /// This function uses `Pin::new_unchecked`, which is unsafe because it assumes
-    /// that the value being pinned will not move for the duration of the pin.
-    /// Ensure that the value cannot be moved out of the `StackBox`.
+    /// # Examples
     ///
-    /// # Example
     /// ```
-    /// use miniloop::task::StackBox;
-    /// let mut my_value = 42;
-    /// let stack_box = StackBox::new(&mut my_value);
+    /// use miniloop::executor::Executor;
+    /// use miniloop::task::{Task, Handle};
+    ///
+    /// let mut task = Task::new("example_task", async { 42 });
+    /// let mut handle = task.create_handle();
+    /// // run executor
+    /// # let mut executor = Executor::new();
+    /// # let _ = executor.spawn(&mut task, &mut handle);
+    /// # executor.run();
+    ///
+    /// assert!(handle.value.is_some_and(|v| v == 42));
     /// ```
-    pub fn new(value: &'a mut T) -> Self {
-        let new_box = StackBox::default();
-        new_box
-            .value
-            .get_or_init(|| unsafe { Pin::new_unchecked(value) });
-
-        new_box
+    pub(crate) fn link_handle(&mut self, handle: &'a mut Handle<F::Output>) {
+        self.handle = Some(handle);
     }
 }
 
-/// A type alias for a `StackBox` containing a `Future` trait object.
-///
-/// The `StackBoxFuture` type is a convenient way to create a stack-based pinned
-/// future. This allows futures to be stored and run on the stack rather than
-/// being allocated on the heap, which can be useful in certain performance-sensitive
-/// scenarios.
-///
-/// # Type Parameters
-/// - `'a`: The lifetime of the reference to the stored future.
-///
-/// # Example
-/// ```
-/// use miniloop::task::{StackBox, StackBoxFuture};
-///
-/// async fn my_async_fn() {
-///     // Your async code here
-/// }
-///
-/// // Create a mutable future
-/// let mut my_future = async { my_async_fn().await };
-///
-/// // Wrap the future in a StackBoxFuture
-/// let stack_box_future: StackBoxFuture = StackBox::new(&mut my_future);
-/// ```
-pub type StackBoxFuture<'a> = StackBox<'a, dyn Future<Output = ()> + 'a>;
+impl<T: Future> Future for Task<'_, T> {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = unsafe { self.get_unchecked_mut() };
+        // SAFETY:
+        // 1. `this.future` is never moved out of `Runner` after this line.
+        // 2. `this.future` is not used to create a `Pin<&mut T>` anywhere else.
+        let mut future = unsafe { Pin::new_unchecked(&mut this.future) };
+        let res = ready!(future.as_mut().poll(cx));
+
+        if let Some(handle) = this.handle.as_mut() {
+            handle.value = Some(res);
+        }
+
+        Poll::Ready(())
+    }
+}
+
+pub(crate) trait TaskName {
+    fn name(&self) -> Option<&str>;
+}
+
+impl<T: Future> TaskName for Task<'_, T> {
+    fn name(&self) -> Option<&str> {
+        self.name
+    }
+}
+
+pub(crate) trait TaskFuture: Future<Output = ()> + TaskName {}
+
+impl<T: Future> TaskFuture for Task<'_, T> {}

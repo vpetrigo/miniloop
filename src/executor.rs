@@ -11,47 +11,25 @@
 //!
 //! ## Examples
 //!
-//! ### Creating a New Executor
-//! ```rust
-//! # use miniloop::executor::Executor;
-//! let executor = Executor::new();
-//! ```
-//!
-//! ### Setting a Pending Callback
-//! ```rust
-//! # use miniloop::executor::Executor;
-//! let mut executor = Executor::new();
-//! executor.set_pending_callback(|task_name| {
-//!     println!("Task {} is pending", task_name);
-//! });
-//! ```
-//!
-//! ### Spawning a Task
-//! ```no_run
-//! # use miniloop::executor::Executor;
-//! # use core::future::Future;
-//! // Assume `some_future` is a mutable future reference
-//! let mut executor = Executor::new();
-//! # let mut some_future = async {};
-//! executor.spawn("task1", &mut some_future).expect("Failed to spawn task");
-//! ```
-//!
 //! ### Running the Executor
 //! ```no_run
 //! # use miniloop::executor::Executor;
-//! # use core::future::Future;
-//! // Assume `some_future` is a mutable future reference
+//! # use miniloop::task::Task;
 //! let mut executor = Executor::new();
-//! # let mut some_future = async {};
-//! executor.spawn("task1", &mut some_future).expect("Failed to spawn task");
+//! let mut task = Task::new("task1", async { println!("Task executed"); });
+//! let mut handle = task.create_handle();
+//! executor.spawn(&mut task, &mut handle).expect("Failed to spawn task");
 //! executor.run();
 //! ```
 //!
 //! ## Usage Notes
 //! - The `Executor` is designed to work with a fixed task slot size. Trying to add more than 4 tasks will result in an error (`NoFreeSlots`).
 //! - Ensure that tasks added to the executor are correctly managed and polled to avoid resource leaks or incomplete executions.
-use crate::task::Task;
+use crate::sbox::{StackBox, StackBoxFuture};
+use crate::task::{Handle, Task};
+
 use core::future::Future;
+use core::pin::pin;
 use core::ptr;
 use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
@@ -67,7 +45,7 @@ pub enum Error {
 /// The `Executor` struct is responsible for managing and running tasks.
 pub struct Executor<'a> {
     /// An array of optional tasks that the executor can manage. The array size is fixed at 4 elements.
-    tasks: [Option<Task<'a>>; TASK_ARRAY_SIZE],
+    tasks: [Option<StackBoxFuture<'a>>; TASK_ARRAY_SIZE],
 
     /// An index indicating the current position in the tasks array.
     index: usize,
@@ -98,16 +76,8 @@ impl<'a> Executor<'a> {
     ///
     /// The `#[must_use]` attribute indicates that the returned `Executor` instance should not
     /// be discarded.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use miniloop::executor::Executor;
-    ///
-    /// let executor = Executor::new();
-    /// ```
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             tasks: [const { None }; TASK_ARRAY_SIZE],
             index: 0,
@@ -129,26 +99,72 @@ impl<'a> Executor<'a> {
     /// # Errors
     ///
     /// * `NoFreeSlots` - if there is no free slots in the executor
-    pub fn spawn(
+    pub fn spawn<F>(
         &mut self,
-        name: &'a str,
-        future: &'a mut impl Future<Output = ()>,
-    ) -> Result<(), Error> {
+        task: &'a mut Task<'a, F>,
+        handle: &'a mut Handle<F::Output>,
+    ) -> Result<(), Error>
+    where
+        F: Future + 'a,
+    {
         if self.index >= self.tasks.len() {
             return Err(Error::NoFreeSlots);
         }
 
+        task.link_handle(handle);
         let index = self.index;
         self.index += 1;
-        self.tasks[index] = Some(Task::new(name, future));
+        self.tasks[index] = Some(StackBox::new(task));
 
         Ok(())
+    }
+    /// Blocks on the provided future until it is completed.
+    ///
+    /// This method will drive the given future to completion, blocking the
+    /// current thread during the process. It is useful for running a single
+    /// future to completion in a synchronous context.
+    ///
+    /// # Parameters
+    ///
+    /// * `future` - The future to be executed until completion. The future
+    ///   must implement [`Future`], and its output must match the type `T`.
+    ///
+    /// # Returns
+    ///
+    /// This function will return the output of the provided future once it
+    /// is resolved.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use miniloop::executor::Executor;
+    /// let mut executor = Executor::new();
+    /// let result = executor.block_on(async { 42 });
+    /// assert_eq!(result, 42);
+    /// ```
+    pub fn block_on<F, T>(&mut self, mut future: F) -> T
+    where
+        F: Future<Output = T>,
+    {
+        let waker = create_waker();
+        let mut future = pin!(future);
+        let mut ctx = Context::from_waker(&waker);
+
+        loop {
+            if let Poll::Ready(val) = future.as_mut().poll(&mut ctx) {
+                return val;
+            }
+        }
     }
 
     /// Executes tasks in the executor until all tasks are completed.
     ///
     /// The method repeatedly polls each task in the tasks array. If a task completes, it is removed from the array.
     /// The function keeps running until all tasks are either completed or removed from the tasks array.
+    ///
+    /// <div class="warning">
+    /// That call does not return till all tasks are finished theirs execution.
+    /// </div>
     ///
     /// # Behavior
     ///
@@ -188,14 +204,14 @@ impl<'a> Executor<'a> {
 ///
 /// * `true` if the task has completed.
 /// * `false` if the task is still pending.
-fn poll_task(task: &mut Task, cb: Option<fn(&str)>) -> bool {
-    if let Some(future) = task.future.value.get_mut() {
+fn poll_task(task: &mut StackBoxFuture, cb: Option<fn(&str)>) -> bool {
+    if let Some(future) = task.value.get_mut() {
         let waker = create_waker();
         let context = &mut Context::from_waker(&waker);
 
         if matches!(future.as_mut().poll(context), Poll::Pending) {
             if let Some(cb) = cb {
-                cb(task.name);
+                cb(future.name().unwrap_or(""));
             }
         } else {
             return true;

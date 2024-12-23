@@ -1,6 +1,6 @@
 [package]
 name = "miniloop"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 resolver = "2"
 license = "Apache-2.0"
@@ -19,3 +19,6 @@ exclude = [
 
 [[example]]
 name = "simple"
+
+[[example]]
+name = "simple2"
