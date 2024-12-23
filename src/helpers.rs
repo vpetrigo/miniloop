@@ -7,24 +7,27 @@
 //!
 //! ```no_run
 //! # use miniloop::executor::Executor;
+//! # use miniloop::task::Task;
 //! # use core::future::Future;
 //! use miniloop::helpers::yield_me;
 //! // Assume `some_future` is a mutable future reference
 //! let mut executor = Executor::new();
-//! let mut task1 = async {
+//! let mut task1 = Task::new("task1", async {
 //!     loop {
 //!         // computation
 //!         yield_me().await; // let to switch to another task
 //!     }
-//! };
-//! let mut task2 = async {
+//! });
+//! let mut handle1 = task1.create_handle();
+//! let mut task2 = Task::new("task2", async {
 //!     loop {
 //!         // computation
 //!         yield_me().await; // let to switch to another task
 //!     }
-//! };
-//! executor.spawn("task1", &mut task1).expect("Failed to spawn task");
-//! executor.spawn("task2", &mut task2).expect("Failed to spawn task");
+//! });
+//! let mut handle2 = task2.create_handle();
+//! executor.spawn(&mut task1, &mut handle1).expect("Failed to spawn task");
+//! executor.spawn(&mut task2, &mut handle2).expect("Failed to spawn task");
 //! executor.run();
 //! ```
 use core::default::Default;
