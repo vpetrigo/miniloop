@@ -29,28 +29,30 @@
 //! ### Spawning a Task
 //! ```no_run
 //! # use miniloop::executor::Executor;
-//! # use core::future::Future;
-//! // Assume `some_future` is a mutable future reference
+//! # use miniloop::task::Task;
 //! let mut executor = Executor::new();
-//! # let mut some_future = async {};
-//! executor.spawn("task1", &mut some_future).expect("Failed to spawn task");
+//! let mut task = Task::new("task1", async { println!("Task executed"); });
+//! let mut handle = task.create_handle();
+//! executor.spawn(&mut task, &mut handle).expect("Failed to spawn task");
 //! ```
 //!
 //! ### Running the Executor
 //! ```no_run
 //! # use miniloop::executor::Executor;
-//! # use core::future::Future;
-//! // Assume `some_future` is a mutable future reference
+//! # use miniloop::task::Task;
 //! let mut executor = Executor::new();
-//! # let mut some_future = async {};
-//! executor.spawn("task1", &mut some_future).expect("Failed to spawn task");
+//! let mut task = Task::new("task1", async { println!("Task executed"); });
+//! let mut handle = task.create_handle();
+//! executor.spawn(&mut task, &mut handle).expect("Failed to spawn task");
 //! executor.run();
 //! ```
 //!
 //! ## Usage Notes
 //! - The `Executor` is designed to work with a fixed task slot size. Trying to add more than 4 tasks will result in an error (`NoFreeSlots`).
 //! - Ensure that tasks added to the executor are correctly managed and polled to avoid resource leaks or incomplete executions.
-use crate::task::Task;
+use crate::sbox::{StackBox, StackBoxFuture};
+use crate::task::{Handle, Task};
+
 use core::future::Future;
 use core::pin::pin;
 use core::ptr;
@@ -68,7 +70,7 @@ pub enum Error {
 /// The `Executor` struct is responsible for managing and running tasks.
 pub struct Executor<'a> {
     /// An array of optional tasks that the executor can manage. The array size is fixed at 4 elements.
-    tasks: [Option<Task<'a>>; TASK_ARRAY_SIZE],
+    tasks: [Option<StackBoxFuture<'a>>; TASK_ARRAY_SIZE],
 
     /// An index indicating the current position in the tasks array.
     index: usize,
@@ -130,17 +132,22 @@ impl<'a> Executor<'a> {
     /// # Errors
     ///
     /// * `NoFreeSlots` - if there is no free slots in the executor
-    pub fn spawn<F>(&mut self, name: &'a str, future: &'a mut F) -> Result<(), Error>
+    pub fn spawn<F>(
+        &mut self,
+        task: &'a mut Task<'a, F>,
+        handle: &'a mut Handle<F::Output>,
+    ) -> Result<(), Error>
     where
-        F: Future<Output = ()> + 'a,
+        F: Future + 'a,
     {
         if self.index >= self.tasks.len() {
             return Err(Error::NoFreeSlots);
         }
 
+        task.link_handle(handle);
         let index = self.index;
         self.index += 1;
-        self.tasks[index] = Some(Task::new(name, future));
+        self.tasks[index] = Some(StackBox::new(task));
 
         Ok(())
     }
@@ -226,14 +233,14 @@ impl<'a> Executor<'a> {
 ///
 /// * `true` if the task has completed.
 /// * `false` if the task is still pending.
-fn poll_task(task: &mut Task, cb: Option<fn(&str)>) -> bool {
-    if let Some(future) = task.future.value.get_mut() {
+fn poll_task(task: &mut StackBoxFuture, cb: Option<fn(&str)>) -> bool {
+    if let Some(future) = task.value.get_mut() {
         let waker = create_waker();
         let context = &mut Context::from_waker(&waker);
 
         if matches!(future.as_mut().poll(context), Poll::Pending) {
             if let Some(cb) = cb {
-                cb(task.name);
+                cb(future.name().unwrap_or(""));
             }
         } else {
             return true;
