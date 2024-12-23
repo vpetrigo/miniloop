@@ -37,4 +37,4 @@ jobs:
       - name: Build
         run: MINILOOP_TASK_ARRAY_SIZE=256 cargo build --all-targets
       - name: Run tests
-        run: cargo test
+        run: MINILOOP_TASK_ARRAY_SIZE=256 cargo test
