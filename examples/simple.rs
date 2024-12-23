@@ -1,5 +1,8 @@
+//! This example requires to be built with environment variable set `MINILOOP_TASK_ARRAY_SIZE=4`
+//! since it creates 4 tasks for execution
 use miniloop::executor::Executor;
 use miniloop::helpers::yield_me;
+use miniloop::task::Task;
 
 fn sleep(s: u64) {
     std::thread::sleep(std::time::Duration::from_secs(s));
@@ -34,24 +37,32 @@ fn main() {
     let mut executor = Executor::new();
     executor.set_pending_callback(pending_print);
 
-    let mut binding1 = async {
+    let mut task1 = Task::new("hello", async {
         dummy_func("hello").await;
-    };
-    let mut binding2 = async {
+    });
+    let mut handle1 = task1.create_handle();
+    let mut task2 = Task::new("world", async {
         dummy_func("world").await;
-    };
-    let mut binding3 = async {
+    });
+    let mut handle2 = task2.create_handle();
+    let mut task3 = Task::new("hi", async {
         dummy_func("hi").await;
-    };
-    let mut binding4 = async {
+    });
+    let mut handle3 = task3.create_handle();
+    let mut task4 = Task::new("rust", async {
         dummy_func("rust").await;
-    };
+    });
+    let mut handle4 = task4.create_handle();
 
-    let _ = executor.spawn("hello", &mut binding1);
-    let _ = executor.spawn("world", &mut binding2);
-    let _ = executor.spawn("hi", &mut binding3);
-    let _ = executor.spawn("rust", &mut binding4);
+    let _ = executor.spawn(&mut task1, &mut handle1);
+    let _ = executor.spawn(&mut task2, &mut handle2);
+    let _ = executor.spawn(&mut task3, &mut handle3);
+    let _ = executor.spawn(&mut task4, &mut handle4);
 
     executor.run();
     println!("Done!");
+    assert!(handle1.value.is_some());
+    assert!(handle2.value.is_some());
+    assert!(handle3.value.is_some());
+    assert!(handle4.value.is_some());
 }
