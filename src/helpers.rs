@@ -10,8 +10,9 @@
 //! # use miniloop::task::Task;
 //! # use core::future::Future;
 //! use miniloop::helpers::yield_me;
+//! const TASK_ARRAY_SIZE: usize = 4;
 //! // Assume `some_future` is a mutable future reference
-//! let mut executor = Executor::new();
+//! let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
 //! let mut task1 = Task::new("task1", async {
 //!     loop {
 //!         // computation

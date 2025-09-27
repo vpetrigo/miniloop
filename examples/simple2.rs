@@ -47,7 +47,7 @@ fn pending_print(task_name: &str) {
 }
 
 fn main() {
-    let mut executor = Executor::new();
+    let mut executor = Executor::<2>::new();
     executor.set_pending_callback(pending_print);
     let mut task1 = Task::new("foo", foo());
     let mut handle1 = task1.create_handle();

@@ -6,32 +6,7 @@
 This repository is created as an attempt to clarify some more low-level details about how things work
 in Rust asynchronous world.
 
-The `miniloop` executor creates a statically allocated list of tasks. That number should be available upon a crate
-build:
-
-- `MINILOOP_TASK_ARRAY_SIZE`: default value is `1` which means you can schedule a single task within the executor. To
-  override that just define an environment variable with the number of tasks you plan to use in your application.
-
-## Configuration
-
-You can set up the environment variable in a shell prior to running the `cargo build` command:
-
-- Linux
-  ```shell
-  export MINILOOP_TASK_ARRAY_SIZE=10
-  ```
-- Windows
-  ```powershell
-  $env:MINILOOP_TASK_ARRAY_SIZE = 10
-  ```
-
-Or you can use [configurable environment](https://doc.rust-lang.org/nightly/cargo/reference/config.html#env) feature by
-creating a `.cargo/config.toml` file with the following content:
-
-```toml
-[env]
-MINILOOP_TASK_ARRAY_SIZE = "10"
-```
+The `miniloop` executor creates a statically allocated list of tasks.
 
 # miniloop in action
 
@@ -72,7 +47,8 @@ fn pending_print(task_name: &str) {
 }
 
 fn main() {
-    let mut executor = Executor::new();
+    const TASK_ARRAY_SIZE: usize = 4;
+    let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
     executor.set_pending_callback(pending_print);
 
     let mut task1 = Task::new("hello", async {
