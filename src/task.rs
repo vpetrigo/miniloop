@@ -26,7 +26,7 @@
 
 use core::future::Future;
 use core::pin::Pin;
-use core::task::{ready, Context, Poll};
+use core::task::{Context, Poll, ready};
 
 pub struct Handle<T> {
     pub value: Option<T>,
@@ -144,7 +144,8 @@ impl<'a, F: Future> Task<'a, F> {
     /// let mut task = Task::new("example_task", async { 42 });
     /// let mut handle = task.create_handle();
     /// // run executor
-    /// # let mut executor = Executor::new();
+    /// # const TASK_ARRAY_SIZE: usize = 1;
+    /// # let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
     /// # let _ = executor.spawn(&mut task, &mut handle);
     /// # executor.run();
     ///

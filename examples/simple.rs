@@ -34,7 +34,7 @@ fn pending_print(task_name: &str) {
 }
 
 fn main() {
-    let mut executor = Executor::new();
+    let mut executor = Executor::<4>::new();
     executor.set_pending_callback(pending_print);
 
     let mut task1 = Task::new("hello", async {

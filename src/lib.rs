@@ -33,7 +33,8 @@
 //! use miniloop::executor::Executor;
 //! use miniloop::task::Task;
 //!
-//! let mut executor = Executor::new();
+//! const TASK_ARRAY_SIZE: usize = 1;
+//! let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
 //!
 //! let mut task = Task::new("task", async {
 //!     println!("Hello, world!");
@@ -50,7 +51,8 @@
 //! use miniloop::executor::Executor;
 //! use miniloop::task::Task;
 //!
-//! let mut executor = Executor::new();
+//! const TASK_ARRAY_SIZE: usize = 2;
+//! let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
 //!
 //! let mut task1 = Task::new("task1", async {
 //!     println!("Task 1 executed");
@@ -84,8 +86,6 @@
 //! Happy learning!
 //!
 #![no_std]
-extern crate alloc;
-
 pub mod executor;
 pub mod helpers;
 pub mod task;
@@ -101,8 +101,7 @@ mod test {
     use core::iter::zip;
     use core::pin::Pin;
     use core::task::{Context, Poll};
-
-    include!(concat!(env!("OUT_DIR"), "/task_array_size.inc"));
+    const TASK_ARRAY_SIZE: usize = 256;
 
     struct MyTestFuture(bool);
 
@@ -123,7 +122,7 @@ mod test {
 
     #[test]
     fn test_one_future() {
-        let mut executor = Executor::new();
+        let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
         let mut task = Task::new("my_test_task", MyTestFuture::default());
         let mut handle = task.create_handle();
         let result = executor.spawn(&mut task, &mut handle);
@@ -137,7 +136,7 @@ mod test {
         let mut task_array =
             [const { Task::new_nameless(MyTestFuture::default()) }; TASK_ARRAY_SIZE];
         let mut handles = [(); TASK_ARRAY_SIZE].map(|()| task_array[0].create_handle());
-        let mut executor = Executor::new();
+        let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
 
         for (task, handle) in zip(&mut task_array, &mut handles) {
             let result = executor.spawn(task, handle);
@@ -161,7 +160,7 @@ mod test {
         let mut task_array =
             [const { Task::new_nameless(MyTestFuture::default()) }; TASK_ARRAY_SIZE + 1];
         let mut handles = [(); TASK_ARRAY_SIZE].map(|()| task_array[0].create_handle());
-        let mut executor = Executor::new();
+        let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
 
         for (i, (task, handle)) in zip(&mut task_array, &mut handles).enumerate() {
             let result = executor.spawn(task, handle);
@@ -186,7 +185,7 @@ mod test {
             Ok(2u32)
         });
         let mut handle2 = task2.create_handle();
-        let mut executor = Executor::new();
+        let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
 
         let result = executor.spawn(&mut task1, &mut handle1);
         assert!(result.is_ok());
