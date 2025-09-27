@@ -15,7 +15,8 @@
 //! ```no_run
 //! # use miniloop::executor::Executor;
 //! # use miniloop::task::Task;
-//! let mut executor = Executor::new();
+//! const TASK_ARRAY_SIZE: usize = 4;
+//! let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
 //! let mut task = Task::new("task1", async { println!("Task executed"); });
 //! let mut handle = task.create_handle();
 //! executor.spawn(&mut task, &mut handle).expect("Failed to spawn task");
@@ -33,8 +34,6 @@ use core::pin::pin;
 use core::ptr;
 use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
-include!(concat!(env!("OUT_DIR"), "/task_array_size.inc"));
-
 /// An enumeration representing different types of errors that can occur.
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -43,7 +42,7 @@ pub enum Error {
 }
 
 /// The `Executor` struct is responsible for managing and running tasks.
-pub struct Executor<'a> {
+pub struct Executor<'a, const TASK_ARRAY_SIZE: usize> {
     /// An array of optional tasks that the executor can manage. The array size is fixed at 4 elements.
     tasks: [Option<StackBoxFuture<'a>>; TASK_ARRAY_SIZE],
 
@@ -54,13 +53,13 @@ pub struct Executor<'a> {
     pending_callback: Option<fn(&str)>,
 }
 
-impl Default for Executor<'_> {
+impl<const TASK_ARRAY_SIZE: usize> Default for Executor<'_, TASK_ARRAY_SIZE> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a> Executor<'a> {
+impl<'a, const TASK_ARRAY_SIZE: usize> Executor<'a, TASK_ARRAY_SIZE> {
     /// Creates a new instance of the `Executor` struct.
     ///
     /// This function initializes the `Executor` with:
@@ -138,11 +137,12 @@ impl<'a> Executor<'a> {
     ///
     /// ```rust
     /// # use miniloop::executor::Executor;
-    /// let mut executor = Executor::new();
+    /// const TASK_ARRAY_SIZE: usize = 1;
+    /// let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
     /// let result = executor.block_on(async { 42 });
     /// assert_eq!(result, 42);
     /// ```
-    pub fn block_on<F, T>(&mut self, mut future: F) -> T
+    pub fn block_on<F, T>(&mut self, future: F) -> T
     where
         F: Future<Output = T>,
     {
