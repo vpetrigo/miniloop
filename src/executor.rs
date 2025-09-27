@@ -5,9 +5,7 @@
 //! for handling task management, and related utilities for polling tasks.
 //!
 //! An executor contains a statically allocated list of tasks. The size of that list is defined by
-//! the environment variable `MINILOOP_TASK_ARRAY_SIZE`. By default, that variable is set up to `1`.
-//! If you need more tasks to be scheduled, consider to set up that variable to the value you
-//! require.
+//! the constant generic parameter.
 //!
 //! ## Examples
 //!
@@ -16,7 +14,7 @@
 //! # use miniloop::executor::Executor;
 //! # use miniloop::task::Task;
 //! const TASK_ARRAY_SIZE: usize = 4;
-//! let mut executor = Executor::<TASK_ARRAY_SIZE>::new();
+//! let mut executor: Executor<TASK_ARRAY_SIZE> = Executor::new();
 //! let mut task = Task::new("task1", async { println!("Task executed"); });
 //! let mut handle = task.create_handle();
 //! executor.spawn(&mut task, &mut handle).expect("Failed to spawn task");

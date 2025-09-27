@@ -1,5 +1,3 @@
-//! This example requires to be built with environment variable set `MINILOOP_TASK_ARRAY_SIZE=4`
-//! since it creates 4 tasks for execution
 use miniloop::executor::Executor;
 use miniloop::helpers::yield_me;
 use miniloop::task::Task;
