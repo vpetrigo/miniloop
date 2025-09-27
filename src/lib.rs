@@ -3,14 +3,6 @@
 //! Miniloop is an educational Rust crate designed to teach the basics of building executors for asynchronous tasks.
 //! It provides a simple and comprehensive executor that helps in understanding how futures and task scheduling work under the hood.
 //!
-//! ## Build variables
-//!
-//! The `miniloop` executor creates a statically allocated list of tasks. That number should be available upon a crate
-//! build:
-//!
-//! - `MINILOOP_TASK_ARRAY_SIZE`: default value is `1` which means you can schedule a single task within the executor. To
-//!   override that just define an environment variable with the number of tasks you plan to use in your application.
-//!
 //! ## Features
 //!
 //! - **No Standard Library**: This crate is `#![no_std]`, making it suitable for embedded and
